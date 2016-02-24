@@ -93,16 +93,39 @@ options:
       - swap memory size in MB for instance
     default: 0
     required: false
-  netif:
+  netid:
     description:
-      - specifies network interfaces for the container
+      - specifies network interfaces ID for the container
     default: null
+    required: false
+    type: string
+  netname:
+    description:
+      - specifies network interfaces name inside the container (eth0, eth1, etc)
+    default: eth0
+    required: false
+    type: string
+  netbridge:
+    description:
+      - specifies the node network bridge to use by the container/vm (vmbr0, vmbr1, etc)
+    default: vmrb0
     required: false
     type: string
   ip_address:
     description:
       - specifies the address the container will be assigned
     default: null
+    required: false
+    type: string
+  netmask_prefix:
+    description:
+      - specifies the network netmask prefix (8, 16, 24, etc)
+    default: 24
+    required: false
+    type: string
+  gateway:
+    description:
+      - specifies the network default gateway for the container
     required: false
     type: string
   onboot:
@@ -125,7 +148,7 @@ options:
     type: integer
   nameserver:
     description:
-      - sets DNS server IP address for a container
+      - sets DNS server IP address for a container (8.8.8.8 8.8.4.4)
     default: null
     required: false
     type: string
@@ -211,12 +234,23 @@ def template_check(proxmox, node, ostemplate):
 def node_check(proxmox, node):
   return [ True for nd in proxmox.nodes.get() if nd['node'] == node ]
 
+def format_lxc_network(dic):
+    str="bridge=" + dic['netbridge'] + ",name=" + dic['netname'] + ",ip=" + dic['ip_address'] + "/" + dic['netmask_prefix'] + ",gw=" + dic['gateway']
+    del dic['netbridge']
+    del dic['netname']
+    del dic['ip_address']
+    del dic['netmask_prefix']
+    del dic['gateway']
+    return str
+
 def create_instance(module, proxmox, vmid, node, disk, storage, cpus, memory, swap, timeout, **kwargs):
   proxmox_node = proxmox.nodes(node)
   kwargs = dict((k,v) for k, v in kwargs.iteritems() if v is not None)
   if VZ_TYPE =='lxc':
       kwargs['cpulimit']=cpus
       kwargs['rootfs']=disk
+      kwargs[kwargs['netid']]=format_lxc_network(kwargs)
+      del kwargs['netid']
   else:
       kwargs['cpus']=cpus
       kwargs['disk']=disk
@@ -295,8 +329,12 @@ def main():
       cpus = dict(type='int', default=1),
       memory = dict(type='int', default=512),
       swap = dict(type='int', default=0),
-      netif = dict(),
+      netid = dict(),
+      netname = dict(default='eth0'),
+      netbridge = dict(default='vmbr0'),
       ip_address = dict(),
+      netmask_prefix = dict(default='24'),
+      gateway = dict(),
       onboot = dict(type='bool', default='no'),
       storage = dict(default='local'),
       cpuunits = dict(type='int', default=1000),
@@ -356,8 +394,12 @@ def main():
                       password = module.params['password'],
                       hostname = module.params['hostname'],
                       ostemplate = module.params['ostemplate'],
-                      netif = module.params['netif'],
+                      netid = module.params['netid'],
+                      netname = module.params['netname'],
+                      netbridge = module.params['netbridge'],
                       ip_address = module.params['ip_address'],
+                      netmask_prefix = module.params['netmask_prefix'],
+                      gateway = module.params['gateway'],
                       onboot = int(module.params['onboot']),
                       cpuunits = module.params['cpuunits'],
                       nameserver = module.params['nameserver'],
