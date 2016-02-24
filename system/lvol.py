@@ -62,6 +62,11 @@ options:
     version_added: "2.0"
     description:
     - Free-form options to be passed to the lvcreate command
+  pv:
+    version_added: "2.1"
+    description:
+    - PV to use as device
+    required: false
   snapshot:
     version_added: "2.1"
     description:
@@ -134,6 +139,7 @@ def main():
             lv=dict(required=True),
             size=dict(type='str'),
             opts=dict(type='str'),
+            pv=dict(type='str', default=""),
             state=dict(choices=["absent", "present"], default='present'),
             force=dict(type='bool', default='no'),
             snapshot=dict(type='str', default=None),
@@ -160,6 +166,7 @@ def main():
     size_opt = 'L'
     size_unit = 'm'
     snapshot = module.params['snapshot']
+    pv = module.params['pv']
 
     if opts is None:
         opts = ""
@@ -237,9 +244,9 @@ def main():
             else:
                 lvcreate_cmd = module.get_bin_path("lvcreate", required=True)
                 if snapshot is not None:
-                    cmd = "%s %s -%s %s%s -s -n %s %s %s/%s" % (lvcreate_cmd, yesopt, size_opt, size, size_unit, snapshot, opts, vg, lv)
+                    cmd = "%s %s -%s %s%s -s -n %s %s %s/%s %s" % (lvcreate_cmd, yesopt, size_opt, size, size_unit, snapshot, opts, vg, lv, pv)
                 else:
-                    cmd = "%s %s -n %s -%s %s%s %s %s" % (lvcreate_cmd, yesopt, lv, size_opt, size, size_unit, opts, vg)
+                    cmd = "%s %s -n %s -%s %s%s %s %s %s" % (lvcreate_cmd, yesopt, lv, size_opt, size, size_unit, opts, vg, pv)
                 rc, _, err = module.run_command(cmd)
                 if rc == 0:
                     changed = True
