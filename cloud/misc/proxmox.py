@@ -201,7 +201,11 @@ VZ_TYPE=None
 def get_instance(proxmox, vmid):
   return [ vm for vm in proxmox.cluster.resources.get(type='vm') if vm['vmid'] == int(vmid) ]
 
-def content_check(proxmox, node, ostemplate, storage):
+def template_check(proxmox, node, ostemplate):
+  # We get the storage from the ostemplate string
+  # this allow to separate the storage where is the template from the storage
+  # where we want to create the container/VM
+  storage = ostemplate.split(':')[0] 
   return [ True for cnt in proxmox.nodes(node).storage(storage).content.get() if cnt['volid'] == ostemplate ]
 
 def node_check(proxmox, node):
@@ -344,9 +348,9 @@ def main():
         module.fail_json(msg='node, hostname, password and ostemplate are mandatory for creating vm')
       elif not node_check(proxmox, node):
         module.fail_json(msg="node '%s' not exists in cluster" % node)
-      elif not content_check(proxmox, node, module.params['ostemplate'], storage):
-        module.fail_json(msg="ostemplate '%s' not exists on node %s and storage %s"
-                         % (module.params['ostemplate'], node, storage))
+      elif not template_check(proxmox, node, module.params['ostemplate']):
+        module.fail_json(msg="ostemplate '%s' not exists on node %s"
+                         % (module.params['ostemplate'], node))
 
       create_instance(module, proxmox, vmid, node, disk, storage, cpus, memory, swap, timeout,
                       password = module.params['password'],
